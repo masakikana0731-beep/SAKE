@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>酒ラベル帳</title>
+  <meta name="description" content="お酒のラベル（エチケット）を撮影・補正・記録して楽しむアプリ">
+  <meta name="theme-color" content="#12151f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="appbar">
+    <h1>🍶 酒ラベル帳</h1>
+    <span id="count" class="muted"></span>
+  </header>
+
+  <main>
+    <!-- コレクション -->
+    <section id="view-list" class="view">
+      <div class="toolbar">
+        <input id="q" type="search" placeholder="銘柄・酒蔵・メモで検索">
+        <div class="toolbar-row">
+          <select id="filter-cat"><option value="">すべて</option></select>
+          <select id="sort">
+            <option value="new">新しい順</option>
+            <option value="old">古い順</option>
+            <option value="rating">評価順</option>
+            <option value="name">名前順</option>
+          </select>
+          <button id="fav-only" class="chip" aria-pressed="false" title="お気に入りのみ">♥</button>
+        </div>
+      </div>
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" hidden>
+        <p class="big-emoji">🍶</p>
+        <p>まだ記録がありません。<br>下の <b>＋撮影</b> からラベルを撮ってみましょう。</p>
+      </div>
+    </section>
+
+    <!-- カメラ -->
+    <section id="view-capture" class="view" hidden>
+      <div class="camera">
+        <video id="video" playsinline muted autoplay></video>
+        <div class="guide"><span>ラベルを枠に合わせて</span></div>
+        <p id="cam-msg" class="cam-msg"></p>
+        <button id="torch" class="torch" hidden aria-label="ライト">🔦</button>
+      </div>
+      <div class="cam-controls">
+        <label class="btn ghost">🖼 写真を選ぶ<input type="file" id="file-pick" accept="image/*" hidden></label>
+        <button id="shutter" class="shutter" aria-label="撮影" disabled></button>
+        <label class="btn ghost">📷 カメラアプリ<input type="file" id="file-cam" accept="image/*" capture="environment" hidden></label>
+      </div>
+    </section>
+
+    <!-- 補正① 四隅 -->
+    <section id="view-crop" class="view" hidden>
+      <h2 class="step">① ラベルの四隅を合わせる</h2>
+      <p class="hint">丸い点をドラッグして、ラベルの角に合わせてください（台形補正されます）</p>
+      <div class="stage-wrap">
+        <div class="stage">
+          <canvas id="crop-canvas"></canvas>
+          <svg id="crop-svg" preserveAspectRatio="none"></svg>
+          <canvas id="loupe" width="120" height="120" hidden></canvas>
+        </div>
+      </div>
+      <div class="row">
+        <button id="crop-reset" class="btn">リセット</button>
+        <button id="crop-full" class="btn">画像全体</button>
+        <button id="crop-next" class="btn primary">補正へ →</button>
+      </div>
+    </section>
+
+    <!-- 補正② 色 -->
+    <section id="view-adjust" class="view" hidden>
+      <h2 class="step">② 色と明るさを整える</h2>
+      <div class="stage-wrap"><canvas id="adj-canvas" class="adj-canvas"></canvas></div>
+      <div class="panel">
+        <label class="check"><input type="checkbox" id="adj-auto" checked> 自動補正（ホワイトバランス・コントラスト）</label>
+        <label class="check"><input type="checkbox" id="adj-sharp"> シャープ（文字をくっきり）</label>
+        <label class="slider">明るさ<input type="range" id="adj-bright" min="-60" max="60" value="0"></label>
+        <label class="slider">コントラスト<input type="range" id="adj-contrast" min="-50" max="50" value="0"></label>
+        <label class="slider">彩度<input type="range" id="adj-sat" min="-50" max="50" value="0"></label>
+      </div>
+      <div class="row">
+        <button id="adj-back" class="btn">← 四隅</button>
+        <button id="adj-rotate" class="btn">⟳ 90°</button>
+        <button id="adj-orig" class="btn">元画像</button>
+        <button id="adj-next" class="btn primary">記録へ →</button>
+      </div>
+    </section>
+
+    <!-- 記録フォーム -->
+    <section id="view-form" class="view" hidden>
+      <h2 id="form-title" class="step">③ 記録する</h2>
+      <form id="form" autocomplete="off">
+        <img id="form-img" class="form-img" alt="ラベル画像">
+        <div class="ocr">
+          <button type="button" id="ocr-btn" class="btn">🔍 ラベルの文字を読み取る（β）</button>
+          <label class="check small"><input type="checkbox" id="ocr-vert" checked> 縦書き</label>
+          <p id="ocr-status" class="muted small"></p>
+          <div id="ocr-out" class="chips"></div>
+        </div>
+
+        <label>銘柄 *<input id="f-name" required placeholder="例：獺祭"></label>
+        <label>酒蔵・メーカー<input id="f-brewery" placeholder="例：旭酒造"></label>
+        <div class="grid2">
+          <label>カテゴリ<select id="f-category"></select></label>
+          <label>種類・スタイル<input id="f-type" list="type-list" placeholder="例：純米大吟醸"></label>
+        </div>
+        <datalist id="type-list"></datalist>
+        <div class="grid2">
+          <label>産地<select id="f-pref"></select></label>
+          <label>原料米・品種<input id="f-rice" placeholder="例：山田錦"></label>
+        </div>
+        <div class="grid3">
+          <label>精米歩合 %<input id="f-polish" type="number" inputmode="decimal" min="1" max="100"></label>
+          <label>度数 %<input id="f-abv" type="number" inputmode="decimal" step="0.1" min="0" max="100"></label>
+          <label>価格 円<input id="f-price" type="number" inputmode="numeric" min="0"></label>
+        </div>
+        <div class="grid2">
+          <label>飲んだ日<input id="f-date" type="date"></label>
+          <label>場所・お店<input id="f-place" placeholder="例：自宅 / ○○酒場"></label>
+        </div>
+
+        <fieldset>
+          <legend>評価</legend>
+          <div id="rating" class="rating"></div>
+        </fieldset>
+        <fieldset>
+          <legend>飲み方・温度</legend>
+          <div id="temps" class="chips"></div>
+        </fieldset>
+        <fieldset>
+          <legend>味わい</legend>
+          <div id="taste" class="taste"></div>
+        </fieldset>
+
+        <label>合わせた料理<input id="f-pairing" placeholder="例：刺身、おでん"></label>
+        <label>メモ・感想<textarea id="f-notes" rows="3" placeholder="香り、余韻、誰と飲んだか…"></textarea></label>
+        <label class="check"><input type="checkbox" id="f-fav"> ♥ また飲みたい（お気に入り）</label>
+
+        <div class="row sticky">
+          <button type="button" id="form-cancel" class="btn">← 戻る</button>
+          <button type="submit" class="btn primary">保存</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 詳細 -->
+    <section id="view-detail" class="view" hidden>
+      <div id="detail"></div>
+    </section>
+
+    <!-- 統計 -->
+    <section id="view-stats" class="view" hidden>
+      <div id="stats"></div>
+      <div class="panel">
+        <h3>データ</h3>
+        <p id="storage" class="muted small"></p>
+        <div class="row">
+          <button id="export" class="btn">⬇ バックアップ</button>
+          <label class="btn">⬆ 復元<input type="file" id="import" accept="application/json,.json" hidden></label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab" data-view="list">📚<span>コレクション</span></button>
+    <button class="tab capture" data-view="capture">＋<span>撮影</span></button>
+    <button class="tab" data-view="stats">🏅<span>酒歴</span></button>
+  </nav>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="busy" class="busy" hidden><div class="spinner"></div><p id="busy-msg">処理中…</p></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#12151f"/>
+  <path d="M206 92h100v48c0 22 18 34 30 56 14 26 22 58 22 96v104c0 22-18 40-40 40H194c-22 0-40-18-40-40V292c0-38 8-70 22-96 12-22 30-34 30-56z" fill="#f3eee2"/>
+  <rect x="196" y="72" width="120" height="36" rx="10" fill="#d9a441"/>
+  <rect x="180" y="262" width="152" height="150" rx="10" fill="#d9a441"/>
+  <text x="256" y="364" font-family="serif" font-size="96" font-weight="700" text-anchor="middle" fill="#12151f">酒</text>
+</svg>
