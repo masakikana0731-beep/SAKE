@@ -176,6 +176,15 @@
     <button class="tab" data-view="stats">🏅<span>酒歴</span></button>
   </nav>
 
+  <div id="dialog" class="dialog" hidden>
+    <div class="dialog-box" role="alertdialog" aria-labelledby="dialog-msg">
+      <p id="dialog-msg"></p>
+      <div class="row">
+        <button id="dialog-no" class="btn">キャンセル</button>
+        <button id="dialog-yes" class="btn primary">OK</button>
+      </div>
+    </div>
+  </div>
   <div id="toast" class="toast" hidden></div>
   <div id="busy" class="busy" hidden><div class="spinner"></div><p id="busy-msg">処理中…</p></div>
 

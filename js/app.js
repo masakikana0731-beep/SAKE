@@ -41,6 +41,21 @@ function busy(on, msg = '処理中…') {
   $('#busy-msg').textContent = msg;
 }
 
+// confirm() はアプリ内ブラウザ等で使えない場合があるため自前のダイアログ
+function ask(msg, yes = 'OK') {
+  return new Promise((resolve) => {
+    $('#dialog-msg').textContent = msg;
+    $('#dialog-yes').textContent = yes;
+    $('#dialog').hidden = false;
+    const done = (v) => {
+      $('#dialog').hidden = true;
+      resolve(v);
+    };
+    $('#dialog-yes').onclick = () => done(true);
+    $('#dialog-no').onclick = () => done(false);
+  });
+}
+
 const nextFrame = () => new Promise((r) => setTimeout(r, 30));
 
 // ---------------------------------------------------------------- navigation
@@ -607,7 +622,7 @@ $('#detail').onclick = async (e) => {
     renderDetail();
   } else if (act === 'share') {
     shareRecord(r);
-  } else if (act === 'del' && confirm(`「${r.name}」を削除しますか？`)) {
+  } else if (act === 'del' && await ask(`「${r.name}」を削除しますか？`, '削除する')) {
     await db.del(r.id);
     await reload();
     toast('削除しました');
@@ -726,11 +741,20 @@ $('#export').onclick = async () => {
     const out = [];
     for (const r of state.records) out.push({ ...r, image: await blobToDataUrl(r.image), thumb: r.thumb ? await blobToDataUrl(r.thumb) : null });
     const blob = new Blob([JSON.stringify({ app: 'sake-label-book', version: 1, records: out })], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `sake-label-book-${today()}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    const filename = `sake-label-book-${today()}.json`;
+    // claude.ai の Artifact 上ではページから直接ダウンロードできないため downloads 機能を使う
+    const downloads = window.claude?.use ? await window.claude.use('downloads').catch(() => null) : null;
+    if (downloads) {
+      await downloads.save({ filename, data: blob }).catch((err) => {
+        if (err?.code !== 'declined') toast('保存できませんでした');
+      });
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
   } finally {
     busy(false);
   }
