@@ -176,8 +176,8 @@ async function openCamera() {
     $('#torch').hidden = !cam.hasTorch();
   } catch (err) {
     console.warn(err);
-    msg.innerHTML = `<label class="btn primary big">📷 撮影する<input type="file" accept="image/*" capture="environment" hidden></label>
-      <br><small>ここではカメラ映像を表示できないため、スマホのカメラで撮影します</small>`;
+    msg.innerHTML = `<label class="btn primary big">📷 撮影 / 写真を選ぶ<input type="file" accept="image/*" hidden></label>
+      <br><small>出てきたメニューで「カメラ」を選ぶと撮影できます。<br>カメラが出ない場合は、先にスマホのカメラで撮ってから写真を選んでください。</small>`;
     $('input', msg).onchange = onFile;
   }
 }
