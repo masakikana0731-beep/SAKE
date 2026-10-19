@@ -1,6 +1,7 @@
 import * as db from './db.js';
 import * as im from './correct.js';
 import * as cam from './camera.js';
+import * as lookup from './lookup.js';
 import { PREFS, OTHER_ORIGINS, CATEGORIES, TYPES, TEMPS, TASTE_AXES, BADGES } from './data.js';
 
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -390,6 +391,7 @@ $('#adj-next').onclick = async () => {
 function buildForm() {
   $('#filter-cat').insertAdjacentHTML('beforeend', CATEGORIES.map((c) => `<option>${c}</option>`).join(''));
   $('#f-category').innerHTML = CATEGORIES.map((c) => `<option>${c}</option>`).join('');
+  $('#brand-list').innerHTML = lookup.brandNames().map((n) => `<option value="${n}">`).join('');
   $('#type-list').innerHTML = TYPES.map((t) => `<option value="${t}">`).join('');
   $('#f-pref').innerHTML = '<option value="">—</option>' +
     [...PREFS, ...OTHER_ORIGINS].map((p) => `<option>${p}</option>`).join('');
@@ -446,6 +448,11 @@ function fillForm(rec) {
   });
   $('#ocr-out').innerHTML = '';
   $('#ocr-status').textContent = '';
+  $('#wiki-out').innerHTML = '';
+  setAssist('');
+  delete $('#f-category').dataset.touched;
+  $$('#form .autofilled').forEach((el) => el.classList.remove('autofilled'));
+  updateAssistLinks();
   state.lastField = $('#f-name');
 }
 
@@ -542,9 +549,12 @@ $('#ocr-btn').onclick = async () => {
     await worker.terminate();
     const lines = [...new Set(data.text.split(/\n+/).map((s) => s.replace(/\s+/g, '')).filter((s) => s.length >= 2))];
     $('#ocr-out').innerHTML = lines.map((l) => `<button type="button" class="chip">${esc(l)}</button>`).join('');
-    status.textContent = lines.length
+    const brand = lookup.findBrandInText(data.text);
+    const filled = applyFields({ ...(brand || {}), ...lookup.parseLabelText(data.text) });
+    status.textContent = (filled.length ? `✅ ラベルから入力：${filled.join('・')}。` : '') + (lines.length
       ? '候補をタップすると、最後に選んだ入力欄（初期は銘柄）に入ります。'
-      : '文字を検出できませんでした。手入力してください。';
+      : '文字を検出できませんでした。手入力してください。');
+    if (brand || filled.includes('銘柄')) updateAssistLinks();
   } catch (err) {
     console.warn(err);
     status.textContent = err.message || '読み取りに失敗しました';
@@ -558,6 +568,93 @@ $('#ocr-out').onclick = (e) => {
   const field = state.lastField || $('#f-name');
   field.value = field.value ? field.value + ' ' + chip.textContent : chip.textContent;
   field.focus();
+};
+
+// ---------------------------------------------------------------- 自動入力（AIなし：辞書・ルール解析・Wikipedia）
+const FIELD_MAP = {
+  name: ['#f-name', '銘柄'], brewery: ['#f-brewery', '酒蔵'], category: ['#f-category', 'カテゴリ'],
+  type: ['#f-type', '種類'], pref: ['#f-pref', '産地'], rice: ['#f-rice', '原料米'],
+  polish: ['#f-polish', '精米歩合'], abv: ['#f-abv', '度数'],
+};
+
+/** 空いている欄だけを埋め、埋めた項目名を返す（ユーザーの入力は上書きしない） */
+function applyFields(data) {
+  const filled = [];
+  for (const [key, [sel, label]] of Object.entries(FIELD_MAP)) {
+    const v = data[key];
+    if (v === undefined || v === null || v === '') continue;
+    const el = $(sel);
+    const empty = key === 'category' ? !el.dataset.touched && el.value !== String(v) : el.value === '';
+    if (!empty) continue;
+    el.value = v;
+    if (el.value !== String(v)) continue; // 選択肢にない値
+    el.classList.add('autofilled');
+    filled.push(label);
+  }
+  return filled;
+}
+
+function updateAssistLinks() {
+  const name = $('#f-name').value.trim();
+  const g = $('#google-link');
+  g.href = lookup.googleUrl(name);
+  g.classList.toggle('disabled', !name);
+  $('#wiki-btn').disabled = !name;
+}
+
+function setAssist(msg) {
+  $('#assist-status').textContent = msg;
+}
+
+$('#f-name').addEventListener('input', updateAssistLinks);
+$('#f-name').addEventListener('change', () => {
+  const brand = lookup.findBrand($('#f-name').value);
+  if (!brand) return;
+  const filled = applyFields({ brewery: brand.brewery, pref: brand.pref, category: brand.category, type: brand.type });
+  setAssist(filled.length
+    ? `📖 内蔵辞書から入力：${filled.join('・')}（参考データです。違っていたら直してください）`
+    : `📖 内蔵辞書：${brand.name}（${brand.brewery}・${brand.pref}）`);
+});
+$('#f-category').addEventListener('change', (e) => (e.target.dataset.touched = '1'));
+$('#form').addEventListener('input', (e) => e.target.classList?.remove('autofilled'));
+
+$('#wiki-btn').onclick = async () => {
+  const name = $('#f-name').value.trim();
+  if (!name) return;
+  const out = $('#wiki-out');
+  const btn = $('#wiki-btn');
+  btn.disabled = true;
+  setAssist('🌐 Wikipedia を検索中…');
+  out.innerHTML = '';
+  try {
+    const page = await lookup.searchWikipedia(name, $('#f-category').value);
+    if (!page) {
+      setAssist('見つかりませんでした。「Googleで検索」も試してください。');
+      return;
+    }
+    const parsed = lookup.parseLabelText(page.extract);
+    delete parsed.polish; // 記事の数値は特定の商品のものとは限らない
+    delete parsed.abv;
+    const found = Object.keys(parsed).map((k) => FIELD_MAP[k]?.[1]).filter(Boolean);
+    setAssist('');
+    out.innerHTML = `
+      <div class="wiki-card">
+        <b>${esc(page.title)}</b>
+        <p>${esc(page.extract.slice(0, 220))}${page.extract.length > 220 ? '…' : ''}</p>
+        <small class="muted">出典：<a href="${esc(page.url)}" target="_blank" rel="noopener">Wikipedia</a>（同名の別の記事の場合があります）</small>
+        ${found.length ? `<button type="button" class="btn primary" id="wiki-apply">読み取れた項目を反映（${esc(found.join('・'))}）</button>` : '<small class="muted">自動で反映できる項目はありませんでした</small>'}
+      </div>`;
+    $('#wiki-apply')?.addEventListener('click', () => {
+      const filled = applyFields(parsed);
+      setAssist(filled.length ? `🌐 Wikipedia から入力：${filled.join('・')}` : '空いている欄がないため、反映しませんでした');
+      out.innerHTML = '';
+    });
+  } catch (err) {
+    console.warn(err);
+    setAssist('ネット検索できませんでした（オフライン、または通信が制限された環境です）。「Googleで検索」を使ってください。');
+  } finally {
+    btn.disabled = !$('#f-name').value.trim();
+  }
 };
 
 // ---------------------------------------------------------------- detail

@@ -1,8 +1,8 @@
 // アプリ本体をキャッシュしてオフラインでも起動できるようにする
-const CACHE = 'sake-label-book-v1';
+const CACHE = 'sake-label-book-v2';
 const ASSETS = [
   './', './index.html', './styles.css', './manifest.webmanifest',
-  './js/app.js', './js/db.js', './js/camera.js', './js/correct.js', './js/data.js',
+  './js/app.js', './js/db.js', './js/camera.js', './js/correct.js', './js/data.js', './js/lookup.js', './js/brands.js',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
 ];
 

@@ -106,7 +106,16 @@
           <div id="ocr-out" class="chips"></div>
         </div>
 
-        <label>銘柄 *<input id="f-name" required placeholder="例：獺祭"></label>
+        <label>銘柄 *<input id="f-name" required list="brand-list" placeholder="例：獺祭（候補から選ぶと自動入力）"></label>
+        <datalist id="brand-list"></datalist>
+        <div class="assist">
+          <div class="row tight">
+            <button type="button" id="wiki-btn" class="btn" disabled>🌐 ネットで調べる</button>
+            <a id="google-link" class="btn ghost disabled" target="_blank" rel="noopener">Googleで検索 ↗</a>
+          </div>
+          <p id="assist-status" class="muted small"></p>
+          <div id="wiki-out"></div>
+        </div>
         <label>酒蔵・メーカー<input id="f-brewery" placeholder="例：旭酒造"></label>
         <div class="grid2">
           <label>カテゴリ<select id="f-category"></select></label>

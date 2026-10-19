@@ -289,3 +289,15 @@ legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
 .dialog-box { width: min(360px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
 .dialog-box p { margin: 0 0 4px; font-weight: 600; }
 .cam-msg .btn.big { font-size: 18px; padding: 14px 28px; margin-bottom: 10px; }
+
+/* 自動入力 */
+.assist { display: grid; gap: 6px; margin-top: -4px; }
+.assist p { margin: 0; }
+.row.tight { margin: 0; }
+.row.tight .btn { font-size: 13px; padding: 7px 12px; }
+.btn.disabled { opacity: .45; pointer-events: none; }
+.autofilled { outline: 2px solid var(--accent); outline-offset: -1px; background: color-mix(in srgb, var(--accent) 14%, var(--surface2)); }
+.wiki-card { display: grid; gap: 6px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.wiki-card p { margin: 0; font-size: 13px; }
+.wiki-card a { color: var(--accent); }
+.wiki-card .btn { justify-self: start; }
