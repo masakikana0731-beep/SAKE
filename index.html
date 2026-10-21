@@ -51,10 +51,11 @@
         <button id="torch" class="torch" hidden aria-label="ライト">🔦</button>
       </div>
       <div class="cam-controls">
-        <label class="btn ghost">🖼 写真を選ぶ<input type="file" id="file-pick" accept="image/*" hidden></label>
+        <label class="btn ghost">🖼 写真を選ぶ<input type="file" id="file-pick" accept="image/*" class="vh"></label>
         <button id="shutter" class="shutter" aria-label="撮影" disabled></button>
-        <label class="btn ghost">📷 カメラアプリ<input type="file" id="file-cam" accept="image/*" capture="environment" hidden></label>
+        <label class="btn ghost">📷 カメラアプリ<input type="file" id="file-cam" accept="image/*" capture="environment" class="vh"></label>
       </div>
+      <p class="sample-row"><button id="sample-btn" class="btn ghost">🧪 サンプル画像で試す</button></p>
     </section>
 
     <!-- 補正① 四隅 -->
@@ -173,7 +174,7 @@
         <p id="storage" class="muted small"></p>
         <div class="row">
           <button id="export" class="btn">⬇ バックアップ</button>
-          <label class="btn">⬆ 復元<input type="file" id="import" accept="application/json,.json" hidden></label>
+          <label class="btn">⬆ 復元<input type="file" id="import" accept="application/json,.json" class="vh"></label>
         </div>
       </div>
     </section>

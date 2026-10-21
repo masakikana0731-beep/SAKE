@@ -171,17 +171,64 @@ async function openCamera() {
   $('#shutter').disabled = true;
   $('#torch').hidden = true;
   try {
-    await cam.start($('#video'));
+    // 許可ダイアログが出ないまま待ち続ける環境があるため、一定時間で諦めて代替手段を出す
+    await Promise.race([
+      cam.start($('#video')),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('camera timeout')), 5000)),
+    ]);
     msg.textContent = '';
     $('#shutter').disabled = false;
     $('#torch').hidden = !cam.hasTorch();
   } catch (err) {
     console.warn(err);
-    msg.innerHTML = `<label class="btn primary big">📷 撮影 / 写真を選ぶ<input type="file" accept="image/*" hidden></label>
-      <br><small>出てきたメニューで「カメラ」を選ぶと撮影できます。<br>カメラが出ない場合は、先にスマホのカメラで撮ってから写真を選んでください。</small>`;
+    cam.stop();
+    msg.innerHTML = `<label class="btn primary big">📷 撮影 / 写真を選ぶ<input type="file" accept="image/*" class="vh"></label>
+      <br><small>出てきたメニューで「カメラ」を選ぶと撮影できます。<br>何も起きない場合は、下の「サンプル画像で試す」で動きを確認できます。</small>`;
     $('input', msg).onchange = onFile;
   }
 }
+
+// カメラもファイル選択も使えない環境でも一連の流れを試せるよう、斜めに写ったラベル風の画像を描く
+function sampleImage() {
+  const c = im.canvasOf(1200, 1600);
+  const ctx = c.getContext('2d');
+  const bg = ctx.createLinearGradient(0, 0, 1200, 1600);
+  bg.addColorStop(0, '#5b4a3a');
+  bg.addColorStop(1, '#2e241c');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1200, 1600);
+  ctx.save();
+  ctx.setTransform(0.92, 0.06, -0.05, 0.95, 220, 180);
+  ctx.fillStyle = '#e9dfc6';
+  ctx.fillRect(0, 0, 760, 1120);
+  ctx.strokeStyle = '#b8892f';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(30, 30, 700, 1060);
+  ctx.fillStyle = '#1d1a16';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 230px serif';
+  ctx.fillText('獺', 380, 360);
+  ctx.fillText('祭', 380, 610);
+  ctx.font = 'bold 64px serif';
+  ctx.fillText('純米大吟醸', 380, 760);
+  ctx.font = '40px sans-serif';
+  ctx.fillText('精米歩合23% アルコール分16度', 380, 880);
+  ctx.fillText('旭酒造 山口県', 380, 950);
+  ctx.fillStyle = '#a3262a';
+  ctx.fillRect(560, 90, 110, 110);
+  ctx.restore();
+  return c;
+}
+$('#sample-btn').onclick = () => {
+  const d = startDraft(sampleImage(), 0.06);
+  // サンプルではラベルの位置が分かっているので四隅を合わせておく
+  const m = new DOMMatrix([0.92, 0.06, -0.05, 0.95, 220, 180]);
+  d.quad = [[0, 0], [760, 0], [760, 1120], [0, 1120]].map(([x, y]) => {
+    const p = m.transformPoint({ x, y });
+    return [p.x, p.y];
+  });
+  drawQuad();
+};
 
 $('#shutter').onclick = () => {
   const frame = cam.capture($('#video'));
@@ -218,6 +265,7 @@ function startDraft(src, inset) {
   $('#adj-contrast').value = 0;
   $('#adj-sat').value = 0;
   go('crop');
+  return state.draft;
 }
 
 // ---------------------------------------------------------------- crop (四隅)
